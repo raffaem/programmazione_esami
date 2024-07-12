@@ -37,10 +37,10 @@ def timestamp(s):
     return s[:-3]
 
 
-df = pd.read_excel("programmazione_esami.ods",  sheet_name="calgen")
+df = pd.read_excel("./in/programmazione_esami.ods",  sheet_name="calgen")
 df
 
-dfdata = pd.read_excel("programmazione_esami.ods",  sheet_name="data")
+dfdata = pd.read_excel("./in/programmazione_esami.ods",  sheet_name="data")
 course = dfdata.loc[0, "sigla_corso"]
 course
 
