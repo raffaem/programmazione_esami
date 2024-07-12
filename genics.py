@@ -12,6 +12,8 @@ from zoneinfo import ZoneInfo
 outdir = Path("./out")
 outdir.mkdir(exist_ok=True)
 
+infile = Path("./in/programmazione_esami_EOA.ods")
+
 
 def rome2utc(intime):
     # Get timezone we're trying to convert from
@@ -37,10 +39,10 @@ def timestamp(s):
     return s[:-3]
 
 
-df = pd.read_excel("./in/programmazione_esami.ods",  sheet_name="calgen")
+df = pd.read_excel(infile, sheet_name="calgen")
 df
 
-dfdata = pd.read_excel("./in/programmazione_esami.ods",  sheet_name="data")
+dfdata = pd.read_excel(infile, sheet_name="data")
 course = dfdata.loc[0, "sigla_corso"]
 course
 
