@@ -93,8 +93,7 @@ for index, row in df.iterrows():
     e.end = rome2utc(row["visione_fine"])
     e.location = str(row["visione_link"])
     c.events.add(e)
-    mymd.write(f"Visione: {timestamp(row['visione_inizio'])} "
-               f"[link]({str(row['visione_link'])}) \\\n")
+    mymd.write(f"Visione: {timestamp(row['visione_inizio'])}")
     #
     e = Event()
     e.name = f"[{course}] Appello {n} - Verbalizzazione"
