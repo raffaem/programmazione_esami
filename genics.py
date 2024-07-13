@@ -101,7 +101,7 @@ def procfile(infile):
         table["Verbalizzazione"] = dateonly(row['verbalizzazione'])
         #
         table = table.transpose()
-        table.index.name = f"Appello n. {n}"
+        table.index.name = f"**Appello n. {n}**"
         table.columns = [""]
         mymd.write(table.to_markdown())
         mymd.write("\n\n")
