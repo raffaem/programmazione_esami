@@ -6,7 +6,7 @@ import pandas as pd
 from ics import Calendar, Event
 from pathlib import Path
 
-from datetime import datetime
+from datetime import datetime, date
 from zoneinfo import ZoneInfo
 
 outdir = Path("./out")
@@ -24,11 +24,6 @@ def rome2utc(intime):
     dt = dt.replace(tzinfo=local_tz)
     dt_utc = dt.astimezone(utc_tz)
     return dt_utc
-
-
-def dateonly(s):
-    s = str(s)
-    return s.split(" ")[0]
 
 
 def timestamp(s):
@@ -56,50 +51,82 @@ def procfile(infile):
         # mymd.write(f"**Appello n. {n}** \n\n")
         table = pd.DataFrame()
         #
+        # Inizio iscrizioni
+        # e = Event()
+        # e.name = f"[{course}] Appello {n} - Inizio Iscrizioni"
+        # d = row["iscrizioni_inizio"]
+        # e.begin = rome2utc(d)
+        # e.make_all_day()
+        # c.events.add(e)
+        # table["Inizio iscrizioni"] = [timestamp(d)]
+        #
+        # Fine iscrizioni
+        # e = Event()
+        # e.name = f"[{course}] Appello {n} - Fine Iscrizioni"
+        # d = row["iscrizioni_fine"]
+        # e.begin = rome2utc(d)
+        # e.make_all_day()
+        # c.events.add(e)
+        # table["Fine iscrizioni"] = [timestamp(d)]
+        #
+        # Iscrizioni
+        start = row["iscrizioni_inizio"].date()
         e = Event()
         e.name = f"[{course}] Appello {n} - Inizio Iscrizioni"
-        e.begin = rome2utc(row["iscrizioni_inizio"])
+        e.begin = start
         e.make_all_day()
         c.events.add(e)
-        table["Inizio iscrizioni"] = [timestamp(row['iscrizioni_inizio'])]
-        #
+        end = row["iscrizioni_fine"].date()
         e = Event()
         e.name = f"[{course}] Appello {n} - Fine Iscrizioni"
-        e.begin = rome2utc(row["iscrizioni_fine"])
+        e.begin = end
         e.make_all_day()
         c.events.add(e)
-        table["Fine iscrizioni"] = [timestamp(row['iscrizioni_fine'])]
+        table["Iscrizioni"] = [f"Dal {start.isoformat()} al {end.isoformat()}"]
         #
+        # Esame
         e = Event()
         e.name = f"[{course}] Appello {n} - Esame"
-        e.begin = rome2utc(row["esame_inizio"])
-        e.end = rome2utc(row["esame_fine"])
-        e.location = str(row["esame_aula"])
+        start = row["esame_inizio"]
+        end = row["esame_fine"]
+        room = row["esame_aula"]
+        e.begin = rome2utc(start)
+        e.end = rome2utc(end)
+        e.location = str(room)
         c.events.add(e)
-        table["Esame"] = [timestamp(row['esame_inizio']) +
-                          " " + str(row['esame_aula'])]
+        table["Esame"] = [timestamp(start) + " " + room]
         #
+        # Pubblicazione
         e = Event()
         e.name = f"[{course}] Appello {n} - Pubblicazione"
-        e.begin = rome2utc(row["pubblicazione"])
+        d = row["pubblicazione"]
+        d = d.date()
+        e.begin = d
         e.make_all_day()
         c.events.add(e)
-        table["Pubblicazione"] = [dateonly(row['pubblicazione'])]
+        table["Pubblicazione"] = [d.isoformat()]
         #
+        # Visione
         e = Event()
         e.name = f"[{course}] Appello {n} - Visione"
-        e.begin = rome2utc(row["visione_inizio"])
-        e.end = rome2utc(row["visione_fine"])
+        start = row["visione_inizio"]
+        end = row["visione_fine"]
+        e.begin = rome2utc(start)
+        e.end = rome2utc(end)
         c.events.add(e)
-        table["Visione"] = [timestamp(row['visione_inizio'])]
+        table["Visione"] = [timestamp(start)]
         #
+        # Verbalizzazione
         e = Event()
         e.name = f"[{course}] Appello {n} - Verbalizzazione"
-        e.begin = rome2utc(row["verbalizzazione"])
+        d = row["verbalizzazione"]
+        d = d.date()
+        e.begin = d
         e.make_all_day()
         c.events.add(e)
-        table["Verbalizzazione"] = dateonly(row['verbalizzazione'])
+        table["Verbalizzazione"] = [d.isoformat()]
         #
+        # Write table
         table = table.transpose()
         table.index.name = f"**Appello n. {n}**"
         table.columns = [""]
