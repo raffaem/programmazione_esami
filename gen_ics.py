@@ -32,9 +32,22 @@ def timestamp(s):
     return s[:-3]
 
 
+def checkweekend(row):
+    for col, item in row.items():
+        if col in ["n", "esame_aula"]:
+            continue
+        item = item.date()
+        #  date.isoweekday()
+        # Return the day of the week as an integer, where Monday is 1 and Sunday is 7.
+        weekday = item.isoweekday()
+        if weekday in [6, 7]:
+            print(f"\t\tERROR: {col} has a date of "
+                  f"{item} which falls on a {item.strftime('%A')}!")
+
+
 def procfile(infile):
+    print(f"Processing {infile}")
     df = pd.read_excel(infile, sheet_name="calgen")
-    df
     #
     dfdata = pd.read_excel(infile, sheet_name="data")
     course = dfdata.loc[0, "sigla_corso"]
@@ -47,7 +60,8 @@ def procfile(infile):
     for index, row in df.iterrows():
         #
         n = row["n"]
-        print(f"Processing exam {n}")
+        print(f"\tProcessing exam {n}")
+        checkweekend(row)
         # mymd.write(f"**Appello n. {n}** \n\n")
         table = pd.DataFrame()
         #
