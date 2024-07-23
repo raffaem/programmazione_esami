@@ -47,9 +47,9 @@ def checkweekend(row):
 
 def procfile(infile):
     print(f"Processing {infile}")
-    df = pd.read_excel(infile, sheet_name="calgen")
+    df = pd.read_excel(infile, sheet_name="5_final")
     #
-    dfdata = pd.read_excel(infile, sheet_name="data")
+    dfdata = pd.read_excel(infile, sheet_name="1_data")
     course = dfdata.loc[0, "sigla_corso"]
     course
     #
