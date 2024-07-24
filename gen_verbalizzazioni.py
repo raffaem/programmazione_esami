@@ -16,8 +16,14 @@ def get_val(row, df_val, verb_col, dat_sostenimento):
     assert (isinstance(df_val_sub, pd.DataFrame))
     assert (df_val_sub.shape[0] == 1)
     val = df_val_sub.iloc[0, :][verb_col]
+    is_numeric = isinstance(val, int) or \
+        (isinstance(val, str) and (val.isnumeric() or val == "30L"))
     row["Esito"] = val
-    row["Data sostenimento"] = data_sostenimento.date().isoformat()
+    # Date must be in italian format
+    # DD/MM/YYYY
+    # otherwise it won't work
+    row["Data sostenimento"] = data_sostenimento.date().strftime("%d/%m/%Y")
+    row["Superata"] = "SI" if is_numeric else "NO"
     return row
 
 
