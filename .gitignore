@@ -1,2 +1,3 @@
-/in
+/in/*
+!/in/programmazione_esami_template.ods
 /out

@@ -3,11 +3,11 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import pandas as pd
-import numpy as np
 from pathlib import Path
 import csv
 from datetime import datetime
 import argparse
+import shutil
 
 
 def my_is_numeric(val: str):
@@ -188,11 +188,16 @@ df_var = pd.read_excel(
 df_rifiuti = None
 if args.rifiuti:
     if "file_rifiuti" not in df_var:
-        print(
-            "ERRORE: `file_rifiuti` non è una colonna del foglio var del file valutazioni")
+        print("ERRORE: `file_rifiuti` non è "
+              "una colonna del foglio `var` del file valutazioni")
     rifiuti_path = Path(df_var["file_rifiuti"][0])
     assert (rifiuti_path.is_file())
-    df_rifiuti = pd.read_excel(rifiuti_path)
+    rifiuti_local_path = Path("rifiuti.xlsx")
+    if rifiuti_local_path.is_file():
+        print("ATTENZIONE: Il file locale dei rifiuti esiste già. Uso quello")
+    else:
+        shutil.copy(rifiuti_path, rifiuti_local_path)
+    df_rifiuti = pd.read_excel(rifiuti_local_path)
 
 # Apri file dei sospesi
 filefp = Path("sospesi_in.csv")
