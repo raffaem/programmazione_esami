@@ -24,8 +24,10 @@ def get_val(
     df_val,
     verb_col,
     data_sostenimento,
+    n_app,
     df_rifiuti,
-    df_sospesi,
+    df_sospesi_in,
+    df_sospesi_out
 ):
     """
     Processa una riga del DataFrame verbalizzazioni
@@ -39,36 +41,40 @@ def get_val(
     :type verb_col: str
     :param dat_sostenimento: La data dell'esame
     :type data_sostenimento: datetime.date
+    :param n_app: Numero dell'appello
+    :type n_app: int
     :param df_rifiuti: DataFrame del file rifiuti
     :type df_rifiuti: pandas.DataFrame
-    :param df_sospesi: DataFrame del file sospesi
-    :type df_sospesi: pandas.DataFrame
+    :param df_sospesi_in: DataFrame del file sospesi
+    :type df_sospesi_in: pandas.DataFrame
+    :param df_sospesi_out: DataFrame del file sospesi in uscita
+    :type df_sospesi_out: pandas.DataFrame
 
     """
+    assert (1 <= n_app <= 6)
     # Prende esito dal file valutazioni
     mat = df_verb_row["Matricola"]
     mask = df_val["Matricola"] == mat
     assert (sum(mask) == 1)
-    df_val_sub = df_val[mask]
-    assert (isinstance(df_val_sub, pd.DataFrame))
-    assert (df_val_sub.shape[0] == 1)
-    val = df_val_sub.iloc[0, :][verb_col]
+    df_val_row = df_val[mask].iloc[0]
+    val = df_val_row[verb_col]
     # Cerca nel dataframe rifiuti
     if "Email" not in df_val.columns:
         raise Exception(
             "Il file delle valutazioni non contiene la colonna Email")
-    email = df_val_sub.iloc[0, :]["Email"]
+    email = df_val_row["Email"]
     if "Email" not in df_rifiuti.columns:
         raise Exception("Il file dei rifiuti non contiene la colonna Email")
     mask = df_rifiuti["Email"] == email
     if sum(mask) >= 2:
-        raise Exception(
-            f"L'email {email} ha compilato il form rifiuti più di una volta")
-    if sum(mask) == 1:
+        raise Exception(f"L'email {email} ha compilato il form rifiuti "
+                        "più di una volta")
+    elif sum(mask) == 1:
         df_rifiuti_row = df_rifiuti[mask].iloc[0]
         opzione = df_rifiuti_row["Opzione"]
         opzione = int(opzione)
         assert (1 <= opzione <= 3)
+        # Opzione 1: “Ho conseguito una valutazione ≥ 18. Verbalizza ‘Rifiutato’.” # noqa: E501
         if opzione == 1:
             if my_is_numeric(val):
                 print(
@@ -79,18 +85,90 @@ def get_val(
                 print(f"ERRORE: L'email {email} ha selezionato l'opzione 1 "
                       "ma non poteva farlo "
                       f"perchè la sua valutazione di {val} non è numerica")
-        if opzione == 2:
-            if my_is_numeric(val):
-                print(
-                    f"L'email {email} ha sospeso la propria valutazione "
-                    f"di {val}")
-                df_sospesi.loc[email, "esito"] = val
-                df_sospesi.loc[email, "data_sostenimento"] = data_sostenimento
-                val = "Ritirato"
-            else:
+        # Opzione 2: “Ho conseguito una valutazione ≥ 18
+        #             in un appello antecedente all’appello n. 6.
+        #             Verbalizza ‘Ritirato’ e sospendi valutazione.”
+        elif opzione == 2:
+            if not my_is_numeric(val):
                 print(f"ERRORE: L'email {email} ha selezionato "
-                      "l'opzione 2 ma non poteva farlo perchè la sua "
-                      f"valutazione di {val} non è numerica")
+                      "l'opzione 2 ma non poteva farlo perchè "
+                      f"la sua valutazione di {val} non è numerica")
+            elif n_app >= 6:
+                print(f"ERRORE: L'email {email} ha selezionato "
+                      "l'opzione 2 ma non poteva farlo perchè "
+                      f"siamo all'appello n. {n_app} >= 6.")
+            else:
+                df_sospesi_out.loc[email, "esito"] = val
+                df_sospesi_out.loc[email,
+                                   "data_sostenimento"] = data_sostenimento
+                val = "Ritirato"
+                print(f"L'email {email} ha sospeso "
+                      f"la propria valutazione di {val}")
+        # Opzione 3: “Mi sono ritirato in un appello antecedente all’appello n. 6. "
+        #            "Mantieni valutazione in sospeso.”
+        elif opzione == 3:
+            presente = int(df_val_row["Presente"])
+            assert (presente in [0, 1])
+            ritirato = int(df_val_row["Ritirato"])
+            assert (ritirato in [0, 1])
+            if presente != 1:
+                print(f"ERRORE: L'email {email} ha selezionato "
+                      "l'opzione 3 ma non poteva farlo perchè "
+                      f"non è presente.")
+            elif ritirato != 1:
+                print(f"ERRORE: L'email {email} ha selezionato "
+                      "l'opzione 3 ma non poteva farlo perchè "
+                      f"non si è ritirato.")
+            elif n_app >= 6:
+                print(f"ERRORE: L'email {email} ha selezionato "
+                      "l'opzione 3 ma non poteva farlo perchè "
+                      f"siamo all'appello n. {n_app} >= 6.")
+            else:
+                mask = df_sospesi_in.loc[email]
+                if sum(mask) >= 2:
+                    raise Exception(f"ERRORE: L'email {email} "
+                                    "compare più volte nel file sospesi "
+                                    "per qualche motivo")
+                elif sum(mask) == 0:
+                    raise Exception(f"ERRORE: L'email {email} "
+                                    "ha selezionato l'opzione 3 ma non è nel "
+                                    "file sospesi")
+                else:
+                    df_sospesi_in_row = df_sospesi_in[mask].iloc[0]
+                    for col in list(df_sospesi_in_row.index):
+                        df_sospesi_out.loc[email, col] = df_sospesi_in_row[col]
+        # Opzione 4: “Mi sono ritirato. Verbalizza valutazione in sospeso.”
+        elif opzione == 4:
+            presente = int(df_val_row["Presente"])
+            assert (presente in [0, 1])
+            ritirato = int(df_val_row["Ritirato"])
+            assert (ritirato in [0, 1])
+            if presente != 1:
+                print(f"ERRORE: L'email {email} ha selezionato "
+                      "l'opzione 4 ma non poteva farlo perchè "
+                      f"non è presente.")
+            elif ritirato != 1:
+                print(f"ERRORE: L'email {email} ha selezionato "
+                      "l'opzione 4 ma non poteva farlo perchè "
+                      "non si è ritirato.")
+            else:
+                mask = df_sospesi_in.loc[email]
+                if sum(mask) >= 2:
+                    raise Exception(f"ERRORE: L'email {email} "
+                                    "compare più volte nel file sospesi "
+                                    "per qualche motivo")
+                elif sum(mask) == 0:
+                    raise Exception(f"ERRORE: L'email {email} "
+                                    "ha selezionato l'opzione 4 ma non è nel "
+                                    "file sospesi")
+                else:
+                    val = df_sospesi_in.loc[email, "esito"]
+                    print(f"INFO: L'email {email} ha verbalizzato "
+                          f"la propria valutazione in sospeso di {val}")
+        # Altre opzioni
+        else:
+            raise Exception(f"Opzione {opzione} non implementata")
+
     # Memorizza esito nel file verbalizzazioni
     df_verb_row["Esito"] = val
     # Date must be in italian format
@@ -102,27 +180,41 @@ def get_val(
     return df_verb_row
 
 
-def proc_verb(infile, df_val, data_sostenimento, df_rifiuti, df_sospesi):
+def proc_verb(
+    fp_verb,
+    df_val,
+    data_sostenimento,
+    n_app,
+    df_rifiuti,
+    df_sospesi_in,
+    df_sospesi_out
+):
     """
     Processa il file verbalizzazioni
 
-    :param infile: Percorso al file verbalizzazioni
-    :type infile: Path
+    :param fp_verb: Percorso al file verbalizzazioni
+    :type fp_verb: Path
     :param df_val: DataFrame delle valutazioni
     :type df_val: pandas.DataFrame
-    :data_sostenimento: La data dell'esame
+    :param data_sostenimento: La data dell'esame
     :type data_sostenimento: datetime.datetime
+    :param n_app: Numero dell'appello
+    :type n_app: int
     :param df_rifiuti: DataFrame al foglio rifiuti
     :type df_rifiuti: pandas.DataFrame
+    :param df_sospesi_in: DataFrame del file sospesi
+    :type df_sospesi_in: pandas.DataFrame
+    :param df_sospesi_out: DataFrame del file sospesi in uscita
+    :type df_sospesi_out: pandas.DataFrame
 
     """
     df_verb = pd.read_csv(
-        infile,
+        fp_verb,
         sep=";",
         index_col=False,
         dtype={"Matricola": str},
     )
-    verb_col = infile.name[:-4]
+    verb_col = fp_verb.name[:-4]
     if verb_col not in df_val.columns:
         raise Exception(f"ERRORE: {verb_col} non è una colonna di df_val")
     df_verb_2 = df_verb.apply(
@@ -131,13 +223,14 @@ def proc_verb(infile, df_val, data_sostenimento, df_rifiuti, df_sospesi):
             df_val,
             verb_col,
             data_sostenimento,
+            n_app,
             df_rifiuti,
-            df_sospesi
+            df_sospesi_in
         ),
         axis=1,
     )
     df_verb_2.to_csv(
-        infile.stem+"_compilato.csv",
+        fp_verb.stem+"_compilato.csv",
         index=False,
         sep=";",
         quoting=csv.QUOTE_ALL
@@ -200,11 +293,9 @@ if args.rifiuti:
     df_rifiuti = pd.read_excel(rifiuti_local_path)
 
 # Apri file dei sospesi
-filefp = Path("sospesi_in.csv")
-if filefp.is_file():
-    df_sospesi = pd.read_csv(filefp, index_col="Email")
-else:
-    print("Il file dei sospesi non esiste. Lo creo.")
+
+
+def gen_df_sospesi():
     df_sospesi = pd.DataFrame(
         {
             "esito": [],
@@ -213,21 +304,19 @@ else:
         index=pd.Series([], name="Email",),
         dtype=str
     )
+    return df_sospesi
 
 
-# Rimuovo dai sospesi chi ha consegnato
-presente = df_val["Presente"].apply(int)
-ritirato = df_val["Ritirato"].apply(int)
-assert (presente.isin([0, 1]).sum() == presente.shape[0])
-assert (ritirato.isin([0, 1]).sum() == ritirato.shape[0])
-mask = (presente == 1) & (ritirato == 0)
-inviati_email = df_val[mask]["Email"]
-mask = df_sospesi.index.isin(inviati_email)
-emails_to_rem = df_sospesi[mask].index.values
-print("Le seguenti emails saranno rimosse "
-      "dal file dei sospesi in quanto hanno consegnato: "
-      f"{emails_to_rem}")
-df_sospesi = df_sospesi[~mask]
+df_sospesi_in = None
+df_sospesi_out = None
+if args.rifiuti:
+    filefp = Path("sospesi_in.csv")
+    if filefp.is_file():
+        df_sospesi_in = pd.read_csv(filefp, index_col="Email")
+    else:
+        print("Il file dei sospesi non esiste. Lo creo.")
+        df_sospesi_in = gen_df_sospesi()
+    df_sospesi_out = gen_df_sospesi()
 
 # Prendi data dell'esame dal nome della cartella genitore
 data_sostenimento = Path(".").resolve().parent.name[:10]
@@ -237,14 +326,21 @@ print(f"data_sostenimento={data_sostenimento.isoformat()}")
 # Prendi numero dell'esame dal nome della cartella genitore
 n_app = Path(".").resolve().parent.name[-1]
 n_app = int(n_app)
-assert (n_app >= 1)
-assert (n_app <= 6)
+assert (1 <= n_app <= 6)
 print(f"n_app={n_app}")
 
 # Itera sul file di verbalizzazione e processali
 for verb_file in verb_files:
-    proc_verb(verb_file, df_val, data_sostenimento, df_rifiuti, df_sospesi)
+    proc_verb(
+        verb_file,
+        df_val,
+        data_sostenimento,
+        n_app,
+        df_rifiuti,
+        df_sospesi_in,
+        df_sospesi_out,
+    )
 
-df_sospesi.to_csv("sospesi_out.csv")
+df_sospesi_out.to_csv("sospesi_out.csv")
 
 #
