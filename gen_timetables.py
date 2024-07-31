@@ -38,7 +38,8 @@ def checkweekend(row):
             continue
         item = item.date()
         #  date.isoweekday()
-        # Return the day of the week as an integer, where Monday is 1 and Sunday is 7.
+        # Return the day of the week as an integer,
+        # where Monday is 1 and Sunday is 7.
         weekday = item.isoweekday()
         if weekday in [6, 7]:
             print(f"\t\tERROR: {col} has a date of "
@@ -144,7 +145,7 @@ def procfile(infile):
         table = table.transpose()
         table.index.name = f"**Appello n. {n}**"
         table.columns = [""]
-        mymd.write(table.to_markdown())
+        mymd.write(table.to_markdown(tablefmt="github"))
         mymd.write("\n\n")
     #
     # print(c.events)
